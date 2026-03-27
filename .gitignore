@@ -5,3 +5,5 @@ qdrant_storage/
 
 *.pyc
 *.pdf
+
+gem-test.py
