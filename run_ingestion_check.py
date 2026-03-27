@@ -164,3 +164,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+# python run_ingestion_check.py --skip-index

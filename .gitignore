@@ -1,2 +1,7 @@
 venv/
 .env
+outputs/
+qdrant_storage/
+
+*.pyc
+*.pdf

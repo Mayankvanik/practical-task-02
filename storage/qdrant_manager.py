@@ -29,14 +29,15 @@ _client: QdrantClient | None = None
 
 
 def get_client() -> QdrantClient:
-    """Return (and cache) the Qdrant cloud client."""
+    """Return (and cache) the Qdrant client — works with local Docker or Cloud."""
     global _client
     if _client is None:
-        _client = QdrantClient(
-            url=config.QDRANT_URL,
-            api_key=config.QDRANT_API_KEY,
-            timeout=60,
-        )
+        kwargs: dict = {"url": config.QDRANT_URL, "timeout": 60}
+        # Only pass api_key when it's actually set (Cloud mode).
+        # Omitting it avoids the 'insecure connection' warning for local Docker.
+        if config.QDRANT_API_KEY:
+            kwargs["api_key"] = config.QDRANT_API_KEY
+        _client = QdrantClient(**kwargs)
         logger.info(f"Connected to Qdrant at {config.QDRANT_URL}")
     return _client
 

@@ -144,21 +144,11 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚙️ Configuration")
 
-    qdrant_url = st.text_input(
-        "Qdrant Cloud URL",
-        value=os.getenv("QDRANT_URL", ""),
-        type="default",
-        help="e.g. https://xxxx.cloud.qdrant.io:6333",
-    )
-    qdrant_key = st.text_input(
-        "Qdrant API Key",
-        value=os.getenv("QDRANT_API_KEY", ""),
+    gemini_key = st.text_input(
+        "Gemini API Key",
+        value=os.getenv("GEMINI_API_KEY", ""),
         type="password",
-    )
-    openai_key = st.text_input(
-        "OpenAI API Key",
-        value=os.getenv("OPENAI_API_KEY", ""),
-        type="password",
+        help="Paste your Gemini API key here or place it in your .env file."
     )
     collection_name = st.text_input(
         "Collection Name",
@@ -166,9 +156,7 @@ with st.sidebar:
     )
 
     if st.button("💾 Save Config"):
-        os.environ["QDRANT_URL"] = qdrant_url
-        os.environ["QDRANT_API_KEY"] = qdrant_key
-        os.environ["OPENAI_API_KEY"] = openai_key
+        os.environ["GEMINI_API_KEY"] = gemini_key
         os.environ["QDRANT_COLLECTION"] = collection_name
         st.success("Config saved for this session!")
         st.rerun()
@@ -188,13 +176,7 @@ with st.sidebar:
 
 # ── Validate credentials are set ─────────────────────────────────────────────
 def _creds_ok() -> bool:
-    return all(
-        [
-            os.getenv("QDRANT_URL"),
-            os.getenv("QDRANT_API_KEY"),
-            os.getenv("OPENAI_API_KEY"),
-        ]
-    )
+    return bool(os.getenv("GEMINI_API_KEY"))
 
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -248,7 +230,7 @@ with tab_ingest:
             pdf_path = Path("data/nasa_handbook.pdf")
             if st.button("⬇️ Download PDF"):
                 if not _creds_ok():
-                    st.error("⚠️ Please set Qdrant + OpenAI credentials in the sidebar first.")
+                    st.error("⚠️ Please set your Gemini API Key in the sidebar or .env first.")
                 else:
                     from ingestion.pdf_downloader import download_pdf
                     with st.spinner("Downloading PDF …"):
@@ -272,7 +254,7 @@ with tab_ingest:
 
     if st.button("🚀 Run Full Ingestion Pipeline", use_container_width=True):
         if not _creds_ok():
-            st.error("⚠️ Set Qdrant URL, Qdrant API Key, and OpenAI API Key in the sidebar!")
+            st.error("⚠️ Set your Gemini API Key in the sidebar or .env file before ingesting!")
         elif pdf_path is None or not pdf_path.exists():
             st.error(f"⚠️ PDF not found at `{pdf_path}`. Please upload or download first.")
         else:
@@ -342,7 +324,7 @@ with tab_ingest:
     st.markdown("#### 📡 Qdrant Collection Status")
     if st.button("🔄 Refresh Status"):
         if not _creds_ok():
-            st.warning("Set credentials first.")
+            st.warning("⚠️ Set your Gemini API Key in the sidebar first.")
         else:
             try:
                 import importlib, config as cfg_module
@@ -460,7 +442,7 @@ with tab_chat:
     # ── Process query ─────────────────────────────────────────────────────────
     if ask_clicked and query.strip():
         if not _creds_ok():
-            st.error("⚠️ Please configure credentials in the sidebar first.")
+            st.error("⚠️ Please configure your Gemini API Key in the sidebar or .env first.")
         else:
             import importlib, config as cfg_module
             importlib.reload(cfg_module)

@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
 import config
 
@@ -44,7 +43,7 @@ def generate_answer(
             "figures": list[dict],    # figure hits with paths
         }
     """
-    client = genai.Client(api_key=config.GEMINI_API_KEY)
+    client = OpenAI(api_key=config.OPENAI_API_KEY)
 
     # ── Build context string ──────────────────────────────────────────────────
     context_parts: list[str] = []
@@ -89,23 +88,25 @@ def generate_answer(
 
     context_str = "\n\n---\n\n".join(context_parts)
 
-    user_message = f"""Context:
+    user_message = f"""Question: {query}
+
+Context:
 {context_str}
 
-Please answer the question based ONLY on the context above."""
+Please answer the question based on the context above."""
 
     # ── Call LLM ─────────────────────────────────────────────────────────────
     try:
-        response = client.models.generate_content(
+        response = client.chat.completions.create(
             model=config.LLM_MODEL,
-            contents=[query, user_message],
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-                temperature=0.1,
-                max_output_tokens=1200,
-            ),
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.1,
+            max_tokens=1200,
         )
-        answer = response.text or "No answer generated."
+        answer = response.choices[0].message.content or "No answer generated."
     except Exception as e:
         logger.error(f"LLM call failed: {e}")
         answer = f"Error generating answer: {e}"

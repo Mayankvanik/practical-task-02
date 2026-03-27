@@ -26,29 +26,37 @@ class EmbeddingPair(NamedTuple):
     sparse_values: list[float]
 
 
-# ── Dense embedder (OpenAI) ───────────────────────────────────────────────────
-def _get_openai_client():
-    from openai import OpenAI
-    return OpenAI(api_key=config.OPENAI_API_KEY)
+# ── Dense embedder (SentenceTransformers) ───────────────────────────────────────────────────
+_dense_model = None
+
+def _get_dense_model():
+    global _dense_model
+    if _dense_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            logger.info(f"Loading dense model {config.EMBEDDING_MODEL} on CPU...")
+            # Force CPU to avoid 'meta tensor' error with partial CUDA installs
+            _dense_model = SentenceTransformer(config.EMBEDDING_MODEL, device="cpu")
+            logger.info(f"Dense model loaded successfully on device: {_dense_model.device}")
+        except Exception as e:
+            logger.error(f"Failed to load dense model: {e}")
+            raise
+    return _dense_model
 
 
 def embed_dense_batch(texts: list[str], batch_size: int = 100) -> list[list[float]]:
     """
-    Embed a list of texts using OpenAI embeddings.
-    Returns a list of float vectors.
+    Embed a list of texts using local SentenceTransformers.
     """
-    client = _get_openai_client()
-    all_embeddings: list[list[float]] = []
+    if not texts:
+        return []
 
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
-        # Clean texts: replace newlines (OpenAI recommendation)
-        batch = [t.replace("\n", " ").strip() or "empty" for t in batch]
-        resp = client.embeddings.create(model=config.EMBEDDING_MODEL, input=batch)
-        all_embeddings.extend([item.embedding for item in resp.data])
-        logger.debug(f"  Embedded batch {i // batch_size + 1}: {len(batch)} texts")
-
-    return all_embeddings
+    model = _get_dense_model()
+    # clean texts
+    clean_texts = [str(t).replace("\n", " ").strip() or "empty" for t in texts]
+    
+    embeddings = model.encode(clean_texts, batch_size=batch_size, show_progress_bar=False)
+    return [emb.tolist() for emb in embeddings]
 
 
 # ── Sparse embedder (fastembed BM25) ──────────────────────────────────────────
@@ -103,5 +111,20 @@ def embed_batch(texts: list[str]) -> list[EmbeddingPair]:
 
 def embed_query(query: str) -> EmbeddingPair:
     """Embed a single query string (for retrieval)."""
-    pairs = embed_batch([query])
-    return pairs[0]
+    # Many local models (like bge or mixedbread-ai) need a specific prompt prefix for queries to match passages.
+    prefix = ""
+    if "bge" in config.EMBEDDING_MODEL.lower() or "mxbai" in config.EMBEDDING_MODEL.lower():
+        prefix = "Represent this sentence for searching relevant passages: "
+    
+    dense_query = prefix + query
+    logger.info(f"Embedding search query: {dense_query[:50]}...")
+    
+    # We call dense and sparse embedding directly rather than embed_batch to apply prefix ONLY to dense
+    dense_vecs = embed_dense_batch([dense_query], batch_size=1)
+    sparse_vecs = embed_sparse_batch([query])  # Sparse doesn't need the prompt
+    
+    return EmbeddingPair(
+        dense=dense_vecs[0],
+        sparse_indices=sparse_vecs[0][0],
+        sparse_values=sparse_vecs[0][1]
+    )

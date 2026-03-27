@@ -6,19 +6,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from project root
-load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+# Load .env from project root, overriding any existing env vars to prevent stale cache
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
 
 # ─── Qdrant ───────────────────────────────────────────────────────────────────
-QDRANT_URL: str = os.environ["QDRANT_URL"]
-QDRANT_API_KEY: str = os.environ["QDRANT_API_KEY"]
+QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "nasa_handbook")
 
-# ─── OpenAI ───────────────────────────────────────────────────────────────────
-OPENAI_API_KEY: str = os.environ["OPENAI_API_KEY"]
-EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
-EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "1536"))
+# ─── LLM (Gemini) ─────────────────────────────────────────────────────────────
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "mixedbread-ai/mxbai-embed-large-v1")
+LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "1024"))
 
 # ─── PDF / Data paths ─────────────────────────────────────────────────────────
 NASA_PDF_URL: str = os.getenv(
